@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div class="text-center">
+            <div class="inline-block p-6 bg-green-600 rounded-full mb-4">
+                <i class="fas fa-user-plus fa-4x text-white"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">Registrasi Akun Baru</h2>
+            <p class="text-gray-600">Buat akun untuk mengakses sistem</p>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-lg p-8">
+            <form method="POST" class="space-y-6">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-user text-gray-400"></i>
+                        </div>
+                        <input type="text" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                               id="username" name="username" required placeholder="Pilih username">
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-envelope text-gray-400"></i>
+                        </div>
+                        <input type="email" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                               id="email" name="email" required placeholder="Masukkan email">
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-lock text-gray-400"></i>
+                        </div>
+                        <input type="password" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                               id="password" name="password" required placeholder="Buat password">
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Minimal 6 karakter</p>
+                </div>
+                
+                <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg hover:from-green-600 hover:to-green-700 transition duration-200 font-semibold">
+                    <i class="fas fa-user-plus mr-2"></i>Daftar
+                </button>
+            </form>
+            
+            <div class="text-center mt-6">
+                <a href="{{ url_for('login') }}" class="text-green-600 hover:text-green-800 transition duration-200">
+                    Sudah punya akun? <span class="font-semibold">Login di sini</span>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Info -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="text-center text-blue-800">
+                <i class="fas fa-info-circle mr-2"></i>
+                <span class="text-sm">Akun baru akan mendapat role Employee secara default</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
