@@ -1,13 +1,12 @@
-
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, date
 from functools import wraps
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['SECRET_KEY'] = 'your-secret-key-here-change-in-production'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///employees.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -19,10 +18,9 @@ class Role(db.Model):
     name = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.String(200))
     permissions = db.Column(db.JSON)
-    is_protected = db.Column(db.Boolean, default=False)  # Protected roles can't be deleted/modified
+    is_protected = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationship
     users = db.relationship('User', backref='role_obj', lazy=True)
 
 class User(db.Model):
@@ -63,11 +61,10 @@ class Employee(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
     user_account = db.relationship('User', foreign_keys=[user_id], backref='employee_profile')
     creator = db.relationship('User', foreign_keys=[created_by])
 
-# Enhanced permission decorators
+# Decorators
 def require_permission(permission):
     def decorator(f):
         @wraps(f)
@@ -79,9 +76,10 @@ def require_permission(permission):
             user = User.query.get(session['user_id'])
             if user is None:
                 flash('Pengguna tidak ditemukan!', 'error')
+                session.clear()
                 return redirect(url_for('login'))
             
-            if not user.has_permission(permission):
+            if not user.has_permission(permission) and not user.is_super_admin:
                 flash('Anda tidak memiliki akses untuk melakukan tindakan ini!', 'error')
                 return redirect(url_for('index'))
             
@@ -121,6 +119,7 @@ def index():
     
     if user is None:
         flash('Pengguna tidak ditemukan!', 'error')
+        session.clear()
         return redirect(url_for('login'))
 
     total_employees = Employee.query.count()
@@ -131,7 +130,7 @@ def index():
         'total_employees': total_employees,
         'active_employees': active_employees,
         'departments': departments,
-        'total_users': User.query.count() if user.has_permission('view_users') else 0
+        'total_users': User.query.count() if user.has_permission('view_users') or user.is_super_admin else 0
     }
     
     return render_template('index.html', stats=stats, user=user)
@@ -159,48 +158,6 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # Cek apakah user sudah login dan memiliki permission create_user
-    if 'user_id' in session:
-        user = User.query.get(session['user_id'])
-        if user and user.has_permission('create_user'):
-            # Admin creating new user - allow role selection
-            if request.method == 'POST':
-                username = request.form['username']
-                email = request.form['email']
-                password = request.form['password']
-                role_id = int(request.form.get('role_id', 3))
-                is_active = 'is_active' in request.form
-                
-                # Super Admin validation
-                target_role = Role.query.get(role_id)
-                if target_role and target_role.name == 'Super Admin' and not user.is_super_admin:
-                    flash('Hanya Super Admin yang dapat membuat user dengan role Super Admin!', 'error')
-                    return render_template('add_user.html', roles=Role.query.all())
-                
-                if User.query.filter_by(username=username).first():
-                    flash('Username sudah digunakan!', 'error')
-                    return render_template('add_user.html', roles=Role.query.all())
-                
-                if User.query.filter_by(email=email).first():
-                    flash('Email sudah digunakan!', 'error')
-                    return render_template('add_user.html', roles=Role.query.all())
-                
-                user_new = User(
-                    username=username,
-                    email=email,
-                    password_hash=generate_password_hash(password),
-                    role_id=role_id,
-                    is_active=is_active
-                )
-                
-                db.session.add(user_new)
-                db.session.commit()
-                
-                flash('User berhasil ditambahkan!', 'success')
-                return redirect(url_for('users'))
-            
-            return render_template('add_user.html', roles=Role.query.all())
-    
     # Public registration - default Employee role
     if request.method == 'POST':
         username = request.form['username']
@@ -238,10 +195,17 @@ def logout():
     flash('Logout berhasil!', 'success')
     return redirect(url_for('login'))
 
-# Employee Management Routes (unchanged)
+# Employee Management Routes
 @app.route('/employees')
-@require_permission('view_employees')
 def employees():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user or (not user.has_permission('view_employees') and not user.is_super_admin):
+        flash('Anda tidak memiliki akses untuk melihat halaman ini!', 'error')
+        return redirect(url_for('index'))
+    
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '')
     department = request.args.get('department', '')
@@ -258,8 +222,6 @@ def employees():
     employees = query.paginate(page=page, per_page=10, error_out=False)
     departments = db.session.query(Employee.department).distinct().all()
     
-    user = User.query.get(session['user_id'])
-    
     return render_template('employees.html', 
                          employees=employees, 
                          departments=departments,
@@ -268,8 +230,15 @@ def employees():
                          user=user)
 
 @app.route('/employee/add', methods=['GET', 'POST'])
-@require_permission('create_employee')
 def add_employee():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user or (not user.has_permission('create_employee') and not user.is_super_admin):
+        flash('Anda tidak memiliki akses untuk menambah karyawan!', 'error')
+        return redirect(url_for('employees'))
+    
     if request.method == 'POST':
         employee = Employee(
             employee_id=request.form['employee_id'],
@@ -295,8 +264,15 @@ def add_employee():
     return render_template('add_employee.html')
 
 @app.route('/employee/edit/<int:id>', methods=['GET', 'POST'])
-@require_permission('edit_employee')
 def edit_employee(id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user or (not user.has_permission('edit_employee') and not user.is_super_admin):
+        flash('Anda tidak memiliki akses untuk mengedit karyawan!', 'error')
+        return redirect(url_for('employees'))
+    
     employee = Employee.query.get_or_404(id)
     
     if request.method == 'POST':
@@ -321,8 +297,15 @@ def edit_employee(id):
     return render_template('edit_employee.html', employee=employee)
 
 @app.route('/employee/delete/<int:id>')
-@require_permission('delete_employee')
 def delete_employee(id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user or (not user.has_permission('delete_employee') and not user.is_super_admin):
+        flash('Anda tidak memiliki akses untuk menghapus karyawan!', 'error')
+        return redirect(url_for('employees'))
+    
     employee = Employee.query.get_or_404(id)
     db.session.delete(employee)
     db.session.commit()
@@ -331,33 +314,85 @@ def delete_employee(id):
     return redirect(url_for('employees'))
 
 @app.route('/employee/<int:id>')
-@require_permission('view_employees')
 def view_employee(id):
-    employee = Employee.query.get_or_404(id)
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
     user = User.query.get(session['user_id'])
+    if not user or (not user.has_permission('view_employees') and not user.is_super_admin):
+        flash('Anda tidak memiliki akses untuk melihat detail karyawan!', 'error')
+        return redirect(url_for('index'))
+    
+    employee = Employee.query.get_or_404(id)
     return render_template('view_employee.html', employee=employee, user=user)
 
-# Enhanced User Management Routes
+# User Management Routes
 @app.route('/users')
-@require_permission('view_users')
 def users():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user or (not user.has_permission('view_users') and not user.is_super_admin):
+        flash('Anda tidak memiliki akses untuk melihat daftar users!', 'error')
+        return redirect(url_for('index'))
+    
     page = request.args.get('page', 1, type=int)
     users = User.query.paginate(page=page, per_page=10, error_out=False)
     roles = Role.query.all()
-    current_user = User.query.get(session['user_id'])
     
-    return render_template('users.html', users=users, roles=roles, user=current_user)
+    return render_template('users.html', users=users, roles=roles, user=user)
 
-@app.route('/user/add')
-@require_permission('create_user')
+@app.route('/user/add', methods=['GET', 'POST'])
 def add_user():
-    current_user = User.query.get(session['user_id'])
-    # Filter roles - non-super admins can't assign Super Admin role
-    if current_user.is_super_admin:
-        roles = Role.query.all()
-    else:
-        roles = Role.query.filter(Role.name != 'Super Admin').all()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
     
+    current_user = User.query.get(session['user_id'])
+    if not current_user or (not current_user.has_permission('create_user') and not current_user.is_super_admin):
+        flash('Anda tidak memiliki akses untuk menambah user!', 'error')
+        return redirect(url_for('users'))
+    
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        role_id = int(request.form.get('role_id', 3))
+        is_active = 'is_active' in request.form
+        
+        # Super Admin validation
+        target_role = Role.query.get(role_id)
+        if target_role and target_role.name == 'Super Admin' and not current_user.is_super_admin:
+            flash('Hanya Super Admin yang dapat membuat user dengan role Super Admin!', 'error')
+            roles = Role.query.filter(Role.name != 'Super Admin').all() if not current_user.is_super_admin else Role.query.all()
+            return render_template('add_user.html', roles=roles)
+        
+        if User.query.filter_by(username=username).first():
+            flash('Username sudah digunakan!', 'error')
+            roles = Role.query.filter(Role.name != 'Super Admin').all() if not current_user.is_super_admin else Role.query.all()
+            return render_template('add_user.html', roles=roles)
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email sudah digunakan!', 'error')
+            roles = Role.query.filter(Role.name != 'Super Admin').all() if not current_user.is_super_admin else Role.query.all()
+            return render_template('add_user.html', roles=roles)
+        
+        user_new = User(
+            username=username,
+            email=email,
+            password_hash=generate_password_hash(password),
+            role_id=role_id,
+            is_active=is_active
+        )
+        
+        db.session.add(user_new)
+        db.session.commit()
+        
+        flash('User berhasil ditambahkan!', 'success')
+        return redirect(url_for('users'))
+    
+    # Filter roles - non-super admins can't assign Super Admin role
+    roles = Role.query.all() if current_user.is_super_admin else Role.query.filter(Role.name != 'Super Admin').all()
     return render_template('add_user.html', roles=roles)
 
 @app.route('/user/edit/<int:id>', methods=['GET', 'POST'])
@@ -388,7 +423,7 @@ def edit_user(id):
         can_edit_role = False
     else:
         flash('Anda tidak memiliki akses untuk mengedit user ini!', 'error')
-        return redirect(url_for('users') if current_user.has_permission('view_users') else url_for('index'))
+        return redirect(url_for('users') if (current_user.has_permission('view_users') or current_user.is_super_admin) else url_for('index'))
     
     if not can_edit:
         flash('Akses ditolak!', 'error')
@@ -410,10 +445,8 @@ def edit_user(id):
                 user_to_edit.role_id = new_role_id
         
         # Only allow active status changes if user has proper permissions
-        if can_edit_role and 'is_active' in request.form:
-            user_to_edit.is_active = True
-        elif can_edit_role:
-            user_to_edit.is_active = False
+        if can_edit_role:
+            user_to_edit.is_active = 'is_active' in request.form
         
         # Change password if provided
         if request.form.get('password'):
@@ -428,16 +461,14 @@ def edit_user(id):
                 session['username'] = user_to_edit.username
                 session['role'] = user_to_edit.role_name
                 session['permissions'] = user_to_edit.role_obj.permissions or []
+                session['is_super_admin'] = user_to_edit.is_super_admin
             
-            return redirect(url_for('users') if current_user.has_permission('view_users') else url_for('index'))
+            return redirect(url_for('users') if (current_user.has_permission('view_users') or current_user.is_super_admin) else url_for('index'))
         except Exception as e:
             flash('Error: Username atau Email sudah digunakan!', 'error')
     
     # Filter roles for non-super admins
-    if current_user.is_super_admin:
-        roles = Role.query.all()
-    else:
-        roles = Role.query.filter(Role.name != 'Super Admin').all()
+    roles = Role.query.all() if current_user.is_super_admin else Role.query.filter(Role.name != 'Super Admin').all()
     
     return render_template('edit_user.html', 
                          user_to_edit=user_to_edit, 
@@ -446,9 +477,15 @@ def edit_user(id):
                          can_edit_role=can_edit_role)
 
 @app.route('/user/delete/<int:id>')
-@require_permission('delete_user')
 def delete_user(id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
     current_user = User.query.get(session['user_id'])
+    if not current_user or (not current_user.has_permission('delete_user') and not current_user.is_super_admin):
+        flash('Anda tidak memiliki akses untuk menghapus user!', 'error')
+        return redirect(url_for('users'))
+    
     user_to_delete = User.query.get_or_404(id)
     
     if id == session['user_id']:
@@ -644,4 +681,3 @@ if __name__ == '__main__':
         init_database()
     
     app.run(debug=True)
-

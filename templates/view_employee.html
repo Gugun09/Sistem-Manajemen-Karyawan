@@ -6,12 +6,12 @@
         <div class="p-6 flex justify-between items-center border-b border-gray-200">
             <h4 class="text-2xl font-bold text-gray-900">Detail Karyawan</h4>
             <div class="space-x-2">
-                {% if 'edit_employee' in session.permissions %}
+                {% if 'edit_employee' in session.permissions or session.is_super_admin %}
                 <a href="{{ url_for('edit_employee', id=employee.id) }}" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition duration-200">
                     <i class="fas fa-edit mr-1"></i>Edit
                 </a>
                 {% endif %}
-                {% if 'delete_employee' in session.permissions %}
+                {% if 'delete_employee' in session.permissions or session.is_super_admin %}
                 <a href="{{ url_for('delete_employee', id=employee.id) }}" 
                    class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition duration-200"
                    onclick="return confirm('Yakin ingin menghapus karyawan ini?')">
@@ -108,9 +108,7 @@
                         <div class="flex justify-between">
                             <span class="font-medium text-gray-700">Lama Kerja:</span>
                             <span class="text-gray-900">
-                                {% from 'datetime' import date %}
-                                {% set today = moment().date() if moment else date.today() %}
-                                {% set work_days = (today - employee.hire_date).days %}
+                                {% set work_days = (employee.created_at.date() - employee.hire_date).days %}
                                 {% set years = work_days // 365 %}
                                 {% set months = (work_days % 365) // 30 %}
                                 {% if years > 0 %}
@@ -152,7 +150,7 @@
                     <i class="fas fa-arrow-left mr-2"></i>Kembali ke Daftar
                 </a>
                 <div class="space-x-2">
-                    {% if 'edit_employee' in session.permissions %}
+                    {% if 'edit_employee' in session.permissions or session.is_super_admin %}
                     <a href="{{ url_for('edit_employee', id=employee.id) }}" class="bg-yellow-500 text-white px-6 py-3 rounded-lg hover:bg-yellow-600 transition duration-200">
                         <i class="fas fa-edit mr-2"></i>Edit Karyawan
                     </a>

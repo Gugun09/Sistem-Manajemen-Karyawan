@@ -3,7 +3,7 @@
 {% block content %}
 <div class="flex justify-between items-center mb-6">
     <h1 class="text-3xl font-bold text-gray-900">Daftar Karyawan</h1>
-    {% if 'create_employee' in session.permissions %}
+    {% if 'create_employee' in session.permissions or session.is_super_admin %}
     <a href="{{ url_for('add_employee') }}" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:from-blue-600 hover:to-blue-700 transition duration-200">
         <i class="fas fa-plus mr-2"></i>Tambah Karyawan
     </a>
@@ -81,13 +81,13 @@
                                class="text-indigo-600 hover:text-indigo-900 transition duration-200" title="Lihat Detail">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            {% if 'edit_employee' in session.permissions %}
+                            {% if 'edit_employee' in session.permissions or session.is_super_admin %}
                             <a href="{{ url_for('edit_employee', id=employee.id) }}" 
                                class="text-yellow-600 hover:text-yellow-900 transition duration-200" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
                             {% endif %}
-                            {% if 'delete_employee' in session.permissions %}
+                            {% if 'delete_employee' in session.permissions or session.is_super_admin %}
                             <a href="{{ url_for('delete_employee', id=employee.id) }}" 
                                class="text-red-600 hover:text-red-900 transition duration-200" title="Hapus"
                                onclick="return confirm('Yakin ingin menghapus karyawan ini?')">
@@ -107,7 +107,7 @@
     <div class="bg-white px-4 py-3 border-t border-gray-200">
         <div class="flex items-center justify-between">
             <div class="text-sm text-gray-700">
-                Showing {{ employees.page }} to {{ employees.pages }} of {{ employees.total }} results
+                Menampilkan {{ employees.page }} sampai {{ employees.pages }} dari {{ employees.total }} hasil
             </div>
             <nav class="flex space-x-2">
                 {% if employees.has_prev %}
@@ -128,7 +128,7 @@
                         <span class="bg-blue-50 border border-blue-300 text-blue-600 px-4 py-2 rounded-md">{{ page_num }}</span>
                         {% endif %}
                     {% else %}
-                    <span class="px-2">...</span>
+                        <span class="px-2">.../span>
                     {% endif %}
                 {% endfor %}
                 

@@ -4,12 +4,12 @@
 <div class="flex justify-between items-center mb-6">
     <h1 class="text-3xl font-bold text-gray-900">Kelola Users</h1>
     <div class="space-x-2">
-        {% if 'create_user' in session.permissions %}
+        {% if 'create_user' in session.permissions or session.is_super_admin %}
         <a href="{{ url_for('add_user') }}" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg shadow-lg hover:from-green-600 hover:to-green-700 transition duration-200">
             <i class="fas fa-plus mr-2"></i>Tambah User
         </a>
         {% endif %}
-        {% if 'manage_roles' in session.permissions %}
+        {% if session.is_super_admin %}
         <a href="{{ url_for('roles') }}" class="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-3 rounded-lg shadow-lg hover:from-purple-600 hover:to-purple-700 transition duration-200">
             <i class="fas fa-shield-alt mr-2"></i>Kelola Role
         </a>
@@ -17,14 +17,25 @@
     </div>
 </div>
 
-<!-- Sisa template users.html tetap sama seperti sebelumnya -->
+<!-- Info untuk non-super admin -->
+{% if not session.is_super_admin %}
+<div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+    <div class="flex items-center">
+        <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+        <span class="text-blue-800">
+            <strong>Info:</strong> Anda tidak dapat mengedit atau menghapus akun Super Admin.
+        </span>
+    </div>
+</div>
+{% endif %}
+
 <div class="bg-white rounded-lg shadow-lg overflow-hidden">
     {% if users.items %}
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -35,13 +46,29 @@
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for user_item in users.items %}
                 <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {{ user_item.username }}
-                        {% if user_item.id == session.user_id %}
-                        <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            You
-                        </span>
-                        {% endif %}
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10">
+                                <div class="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
+                                    {{ user_item.username[0].upper() }}
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">
+                                    {{ user_item.username }}
+                                    {% if user_item.id == session.user_id %}
+                                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        You
+                                    </span>
+                                    {% endif %}
+                                    {% if user_item.role_name == 'Super Admin' %}
+                                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        <i class="fas fa-crown mr-1"></i>Super Admin
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ user_item.email }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -64,18 +91,30 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div class="flex space-x-2">
-                            {% if 'edit_user' in session.permissions %}
+                            {% set can_edit = (user.is_super_admin) or (user.has_permission('edit_user') and user_item.role_name != 'Super Admin') or (user_item.id == session.user_id) %}
+                            {% set can_delete = (user.has_permission('delete_user') and user_item.id != session.user_id) and ((user.is_super_admin) or (user_item.role_name != 'Super Admin')) %}
+                            
+                            {% if can_edit %}
                             <a href="{{ url_for('edit_user', id=user_item.id) }}" 
-                               class="text-yellow-600 hover:text-yellow-900 transition duration-200" title="Edit">
+                               class="text-yellow-600 hover:text-yellow-900 transition duration-200" title="Edit User">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            {% else %}
+                            <span class="text-gray-400" title="Tidak dapat mengedit user ini">
+                                <i class="fas fa-edit"></i>
+                            </span>
                             {% endif %}
-                            {% if 'delete_user' in session.permissions and user_item.id != session.user_id %}
+                            
+                            {% if can_delete %}
                             <a href="{{ url_for('delete_user', id=user_item.id) }}" 
-                               class="text-red-600 hover:text-red-900 transition duration-200" title="Hapus"
-                               onclick="return confirm('Yakin ingin menghapus user ini?')">
+                               class="text-red-600 hover:text-red-900 transition duration-200" title="Hapus User"
+                               onclick="return confirm('Yakin ingin menghapus user {{ user_item.username }}?')">
                                 <i class="fas fa-trash"></i>
                             </a>
+                            {% else %}
+                            <span class="text-gray-400" title="Tidak dapat menghapus user ini">
+                                <i class="fas fa-trash"></i>
+                            </span>
                             {% endif %}
                         </div>
                     </td>
@@ -84,6 +123,42 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Pagination -->
+    {% if users.pages > 1 %}
+    <div class="bg-white px-4 py-3 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+                Showing {{ users.page }} to {{ users.pages }} of {{ users.total }} results
+            </div>
+            <nav class="flex space-x-2">
+                {% if users.has_prev %}
+                <a class="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 px-4 py-2 rounded-md"
+                   href="{{ url_for('users', page=users.prev_num) }}">Previous</a>
+                {% endif %}
+                
+                {% for page_num in users.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != users.page %}
+                        <a class="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 px-4 py-2 rounded-md"
+                           href="{{ url_for('users', page=page_num) }}">{{ page_num }}</a>
+                        {% else %}
+                        <span class="bg-blue-50 border border-blue-300 text-blue-600 px-4 py-2 rounded-md">{{ page_num }}</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="px-2">...</span>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if users.has_next %}
+                <a class="bg-white border border-gray-300 text-gray-500 hover:bg-gray-50 px-4 py-2 rounded-md"
+                   href="{{ url_for('users', page=users.next_num) }}">Next</a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+
     {% else %}
     <div class="text-center py-12">
         <i class="fas fa-users-cog fa-4x text-gray-300 mb-4"></i>
@@ -91,5 +166,20 @@
         <p class="text-gray-500">Silakan tambah user baru.</p>
     </div>
     {% endif %}
+</div>
+
+<!-- Role Summary -->
+<div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+    <h3 class="text-lg font-semibold text-blue-900 mb-3">Summary Role</h3>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {% for role in roles %}
+        <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600">
+                {{ users.items | selectattr('role_name', 'equalto', role.name) | list | length }}
+            </div>
+            <div class="text-sm text-blue-800">{{ role.name }}</div>
+        </div>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}

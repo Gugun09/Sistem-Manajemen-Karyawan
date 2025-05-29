@@ -4,35 +4,67 @@
 <div class="max-w-4xl mx-auto">
     <div class="bg-white rounded-lg shadow-lg">
         <div class="p-6 border-b border-gray-200">
-            <h4 class="text-2xl font-bold text-gray-900">Edit Role</h4>
+            <h4 class="text-2xl font-bold text-gray-900">Edit Role: {{ role.name }}</h4>
+            <p class="text-gray-600 mt-1">Modifikasi permissions dan informasi role</p>
         </div>
         <div class="p-6">
             <form method="POST">
                 <div class="grid grid-cols-1 gap-6">
                     <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Nama Role *</label>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Nama Role </label>
                         <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
                                id="name" name="name" value="{{ role.name }}" required>
                     </div>
                     <div>
                         <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Deskripsi</label>
-                        <input type="text" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                               id="description" name="description" value="{{ role.description }}">
+                        <textarea class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               id="description" name="description" rows="3">{{ role.description }}</textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Permissions *</label>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {% for permission in available_permissions %}
-                            <div class="flex items-center">
-                                <input type="checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
-                                       id="permission_{{ loop.index }}" name="permissions" value="{{ permission }}"
-                                       {% if permission in role.permissions %}checked{% endif %}>
-                                <label for="permission_{{ loop.index }}" class="ml-2 block text-sm text-gray-700">{{ permission }}</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-4">Permissions </label>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {% set permission_groups = {
+                                    'Dashboard': ['view_dashboard'],
+                                    'Karyawan': ['view_employees', 'create_employee', 'edit_employee', 'delete_employee'],
+                                    'Users': ['view_users', 'create_user', 'edit_user', 'delete_user'],
+                                    'Role Management': ['manage_roles']
+                                } %}
+                                
+                                {% for group_name, group_permissions in permission_groups.items() %}
+                                <div class="bg-white p-3 rounded border">
+                                    <h6 class="font-semibold text-gray-800 mb-2">{{ group_name }}</h6>
+                                    {% for permission in group_permissions %}
+                                    {% if permission in available_permissions %}
+                                    <div class="flex items-center mb-2">
+                                        <input type="checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                                               id="permission_{{ permission }}" name="permissions" value="{{ permission }}"
+                                               {% if permission in role.permissions %}checked{% endif %}>
+                                        <label for="permission_{{ permission }}" class="ml-2 block text-sm text-gray-700">
+                                            {{ permission.replace('_', ' ').title() }}
+                                        </label>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
                     </div>
                 </div>
+                
+                <!-- Current Users with this Role -->
+                {% if role.users %}
+                <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                    <h5 class="font-semibold text-blue-900 mb-2">Users dengan Role Ini ({{ role.users|length }})</h5>
+                    <div class="flex flex-wrap gap-2">
+                        {% for user in role.users %}
+                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">{{ user.username }}</span>
+                        {% endfor %}
+                    </div>
+                    <small class="text-blue-700 mt-2">Perubahan permissions akan mempengaruhi semua users di atas</small>
+                </div>
+                {% endif %}
                 
                 <div class="flex justify-between mt-8">
                     <a href="{{ url_for('roles') }}" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition duration-200">
@@ -46,4 +78,19 @@
         </div>
     </div>
 </div>
+
+<script>
+// Select all checkboxes in a group
+document.querySelectorAll('.bg-white.p-3.rounded.border').forEach(group => {
+    const groupTitle = group.querySelector('h6');
+    if (groupTitle) {
+        groupTitle.style.cursor = 'pointer';
+        groupTitle.addEventListener('click', function() {
+            const checkboxes = group.querySelectorAll('input[type="checkbox"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+        });
+    }
+});
+</script>
 {% endblock %}

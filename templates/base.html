@@ -37,24 +37,24 @@
                         <span>Dashboard</span>
                     </a>
                     
-                    {% if 'view_employees' in session.permissions %}
+                    {% if 'view_employees' in session.permissions or session.is_super_admin %}
                     <a href="{{ url_for('employees') }}" class="text-white hover:text-blue-200 transition duration-200 flex items-center space-x-1">
                         <i class="fas fa-users text-sm"></i>
                         <span>Karyawan</span>
                     </a>
                     {% endif %}
                     
-                    {% if 'create_employee' in session.permissions %}
+                    {% if 'create_employee' in session.permissions or session.is_super_admin %}
                     <a href="{{ url_for('add_employee') }}" class="text-white hover:text-blue-200 transition duration-200 flex items-center space-x-1">
                         <i class="fas fa-plus text-sm"></i>
                         <span>Tambah Karyawan</span>
                     </a>
                     {% endif %}
                     
-                    {% if 'view_users' in session.permissions %}
+                    {% if 'view_users' in session.permissions or session.is_super_admin %}
                     <div class="relative group">
                         <button class="text-white hover:text-blue-200 transition duration-200 flex items-center space-x-1">
-                            <i class="fas fa-user-cog text-sm"></i>
+                            <i class="fas fa-cog text-sm"></i>
                             <span>Kelola System</span>
                             <i class="fas fa-chevron-down text-xs"></i>
                         </button>
@@ -62,12 +62,13 @@
                             <a href="{{ url_for('users') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
                                 <i class="fas fa-users mr-2"></i>Kelola Users
                             </a>
-                            {% if 'create_user' in session.permissions %}
+                            {% if 'create_user' in session.permissions or session.is_super_admin %}
                             <a href="{{ url_for('add_user') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
                                 <i class="fas fa-user-plus mr-2"></i>Tambah User
                             </a>
                             {% endif %}
-                            {% if 'manage_roles' in session.permissions %}
+                            {% if session.is_super_admin %}
+                            <div class="border-t border-gray-100"></div>
                             <a href="{{ url_for('roles') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
                                 <i class="fas fa-shield-alt mr-2"></i>Kelola Role
                             </a>
@@ -90,6 +91,9 @@
                             <div class="px-4 py-2 text-gray-700 border-b">
                                 <small class="text-gray-500">Role: {{ session.role }}</small>
                             </div>
+                            <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                                <i class="fas fa-user-edit mr-2"></i>Edit Profil
+                            </a>
                             <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition duration-200">
                                 <i class="fas fa-sign-out-alt mr-2"></i>Logout
                             </a>
@@ -109,24 +113,25 @@
             <div id="mobile-menu" class="md:hidden hidden pb-4">
                 <a href="{{ url_for('index') }}" class="block py-2 text-white hover:text-blue-200">Dashboard</a>
                 
-                {% if 'view_employees' in session.permissions %}
+                {% if 'view_employees' in session.permissions or session.is_super_admin %}
                 <a href="{{ url_for('employees') }}" class="block py-2 text-white hover:text-blue-200">Karyawan</a>
                 {% endif %}
                 
-                {% if 'create_employee' in session.permissions %}
+                {% if 'create_employee' in session.permissions or session.is_super_admin %}
                 <a href="{{ url_for('add_employee') }}" class="block py-2 text-white hover:text-blue-200">Tambah Karyawan</a>
                 {% endif %}
                 
-                {% if 'view_users' in session.permissions %}
+                {% if 'view_users' in session.permissions or session.is_super_admin %}
                 <a href="{{ url_for('users') }}" class="block py-2 text-white hover:text-blue-200">Kelola Users</a>
                 <a href="{{ url_for('add_user') }}" class="block py-2 text-white hover:text-blue-200">Tambah User</a>
                 {% endif %}
                 
-                {% if 'manage_roles' in session.permissions %}
+                {% if session.is_super_admin %}
                 <a href="{{ url_for('roles') }}" class="block py-2 text-white hover:text-blue-200">Kelola Role</a>
                 <a href="{{ url_for('add_role') }}" class="block py-2 text-white hover:text-blue-200">Tambah Role</a>
                 {% endif %}
                 
+                <a href="{{ url_for('profile') }}" class="block py-2 text-white hover:text-blue-200">Edit Profil</a>
                 <a href="{{ url_for('logout') }}" class="block py-2 text-white hover:text-blue-200">Logout</a>
             </div>
         </div>
